@@ -20,6 +20,8 @@ $ yarn run start:prod
 ```
 ## Description
 
+graphql url: http://localhost:3000/graphql
+
 You can get repositorues by query 
 
   repositories(token: "your token") {
