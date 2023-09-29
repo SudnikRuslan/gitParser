@@ -3,6 +3,8 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { RepositoryResolver } from './repository.resolver';
 import { GithubService } from './github.service';
+import { RepositoryService } from './repository.service';
+import { WorkerPoolService } from './worker-pool.service';
 
 @Module({
   imports: [
@@ -12,6 +14,11 @@ import { GithubService } from './github.service';
     }),
   ],
   controllers: [],
-  providers: [RepositoryResolver, GithubService],
+  providers: [
+    RepositoryResolver,
+    GithubService,
+    RepositoryService,
+    WorkerPoolService,
+  ],
 })
 export class AppModule {}

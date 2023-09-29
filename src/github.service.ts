@@ -1,29 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Octokit } from 'octokit';
-import { v4 as uuid } from 'uuid';
 import { FullRepository } from './entities';
-import { EventEmitter } from 'events';
-
-type task = {
-  repo: string;
-  owner: string;
-  token: string;
-  id: string;
-};
+import { ThreeItem } from './types';
 
 @Injectable()
 export class GithubService {
-  private readonly workers: any[] = [];
-
-  private readonly eventEmitter: EventEmitter = new EventEmitter();
-  private readonly tasks: task[] = [];
-
-  private readonly workerCount = 2;
-
-  constructor() {
-    this.addWorkers(this.workerCount);
-    this.workers.forEach((fn) => fn());
-  }
+  constructor() {}
 
   async getRepositories(token: string, page: number) {
     const octokit = new Octokit({
@@ -40,11 +22,6 @@ export class GithubService {
       },
     );
     return repositories.data;
-  }
-
-  async getFullRepo(repo: string, owner: string, token: string) {
-    const repository = await this.processTask(repo, owner, token);
-    return repository;
   }
 
   async getFullRepoRequest(
@@ -100,34 +77,35 @@ export class GithubService {
     if (!initNode) {
       return [0, ''];
     }
-    const nodesToCheck = [initNode];
-    while (nodesToCheck.length > 0) {
-      const nodesToAdd = [];
-      const nodes = nodesToCheck.splice(0, 5); // parse only by 5 nodes per time;
-      for (const node of nodes) {
-        if (node?.data && Array.isArray(node.data)) {
-          for (const item of node.data) {
-            if (item.type === 'dir') {
-              nodesToAdd.push(
-                this.repositoryContentByPath(repo, owner, item.path, octokit),
-              );
-            }
-            if (item.type === 'file') {
-              filesCount++;
-              if (item.name.includes('.yml') && !ymlData) {
-                ymlData = await this.getFileContent(
-                  repo,
-                  owner,
-                  item.path,
-                  octokit,
-                );
-              }
-            }
+    const threesJobs: Promise<ThreeItem[]>[] = [];
+    if (initNode.data && Array.isArray(initNode.data)) {
+      for (const item of initNode.data) {
+        if (item.type === 'dir')
+          threesJobs.push(
+            this.repositoryThreeBySHA(repo, owner, item.sha, octokit),
+          );
+
+        if (item.type === 'file') {
+          filesCount++;
+          if (!ymlData && item.name.includes('.yml')) {
+            ymlData = await this.getFileContent(
+              repo,
+              owner,
+              item.path,
+              octokit,
+            );
           }
         }
       }
-      const newNodes = await Promise.all(nodesToAdd);
-      nodesToCheck.push(...newNodes);
+      const threes = (await Promise.all(threesJobs)).flatMap((tree) => tree);
+      for (const three of threes) {
+        if (three.type === 'blob') {
+          filesCount++;
+          if (!ymlData && three.path.includes('.yml')) {
+            ymlData = await this.getFileContentByUrl(three.url, octokit);
+          }
+        }
+      }
     }
     return [filesCount, ymlData];
   }
@@ -159,18 +137,59 @@ export class GithubService {
     }
   }
 
-  async getWebHooks(repo: string, owner: string, octokit: Octokit) {
+  async repositoryThreeBySHA(
+    repo: string,
+    owner: string,
+    tree_sha: string,
+    octokit: Octokit,
+  ) {
     try {
-      const webHooks = await octokit.request(
-        'GET /repos/{owner}/{repo}/hooks',
+      const res = await octokit.request(
+        'GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive={recursive}',
         {
           owner,
           repo,
+          tree_sha,
+          recursive: 1,
           headers: {
             'X-GitHub-Api-Version': '2022-11-28',
           },
         },
       );
+      return res.data.tree;
+    } catch (e) {
+      if (e?.status === 404) {
+        return null;
+      }
+      throw new Error(e?.message);
+    }
+  }
+
+  async getWebHooks(repo: string, owner: string, octokit: Octokit, page = 1) {
+    try {
+      const PER_PAGE_MAX = 100;
+      const webHooks = await octokit.request(
+        'GET /repos/{owner}/{repo}/hooks?page={page}&per_page={per_page}',
+        {
+          owner,
+          repo,
+          page,
+          per_page: PER_PAGE_MAX,
+          headers: {
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+        },
+      );
+      const data = [...webHooks.data];
+      if (data.length === PER_PAGE_MAX) {
+        const nextPageResult = await this.getWebHooks(
+          repo,
+          owner,
+          octokit,
+          page + 1,
+        );
+        data.push(...nextPageResult);
+      }
       return webHooks.data;
     } catch (e) {
       if (e?.status === 404) {
@@ -195,71 +214,8 @@ export class GithubService {
     return null;
   }
 
-  processTask(
-    repo: string,
-    owner: string,
-    token: string,
-  ): Promise<FullRepository> {
-    return new Promise((resolve, reject) => {
-      const taskId = uuid();
-      let isResolved = false;
-
-      const handleTaskFunc = (res: {
-        repo?: FullRepository;
-        error: Error;
-        taskId: string;
-      }) => {
-        if (res.taskId === taskId) {
-          isResolved = true;
-          if (res.error) {
-            reject(res.error);
-          }
-          if (res.repo) {
-            resolve(res.repo);
-          }
-          this.eventEmitter.removeListener('task', handleTaskFunc);
-        }
-      };
-      this.eventEmitter.addListener('task', handleTaskFunc);
-
-      setTimeout(() => {
-        if (!isResolved) {
-          this.eventEmitter.removeListener('message', handleTaskFunc);
-          reject(new Error(`TimeoutError: Request took longer 200 sec`));
-        }
-      }, 200000);
-      this.tasks.push({
-        repo,
-        owner,
-        token,
-        id: taskId,
-      });
-    });
-  }
-
-  private addWorkers(count: number) {
-    for (let i = 0; i < count; i++) {
-      this.workers.push(this.worker.bind(this));
-    }
-  }
-
-  private async worker() {
-    if (this.tasks.length > 0) {
-      const task = this.tasks.pop();
-      try {
-        const repo = await this.getFullRepoRequest(
-          task.repo,
-          task.owner,
-          task.token,
-        );
-        this.eventEmitter.emit('task', { repo, taskId: task.id });
-      } catch (e) {
-        this.eventEmitter.emit('task', {
-          error: new Error(e?.message),
-          taskId: task.id,
-        });
-      }
-    }
-    setTimeout(this.worker.bind(this), 10);
+  async getFileContentByUrl(url: string, octokit: Octokit) {
+    const res = await octokit.request(`GET ${url}`);
+    return atob(res.data.content);
   }
 }

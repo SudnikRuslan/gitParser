@@ -14,17 +14,13 @@ $ yarn run start
 # watch mode
 $ yarn run start:dev
 
-# production mode
-$ yarn run start:prod
-```
-```
 ## Description
 
 graphql url: http://localhost:3000/graphql
 
 You can get repositorues by query 
 
-  repositories(token: "your token", , page: 1) {
+  repositories(token: "your token", page: 1) {
     name
   	size
   	owner
@@ -45,7 +41,7 @@ you can get full repo by query
 
 OR as relation
 
-   repositories(token: "your token", , page: 1) {
+   repositories(token: "your token", page: 1) {
     name
   	size
   	owner
