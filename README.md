@@ -24,7 +24,7 @@ graphql url: http://localhost:3000/graphql
 
 You can get repositorues by query 
 
-  repositories(token: "your token") {
+  repositories(token: "your token", , page: 1) {
     name
   	size
   	owner
@@ -45,7 +45,7 @@ you can get full repo by query
 
 OR as relation
 
-   repositories(token: "your token") {
+   repositories(token: "your token", , page: 1) {
     name
   	size
   	owner

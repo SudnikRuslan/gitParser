@@ -25,15 +25,20 @@ export class GithubService {
     this.workers.forEach((fn) => fn());
   }
 
-  async getRepositories(token: string) {
+  async getRepositories(token: string, page: number) {
     const octokit = new Octokit({
       auth: token,
     });
-    const repositories = await octokit.request('GET /user/repos', {
-      headers: {
-        'X-GitHub-Api-Version': '2022-11-28',
+    const repositories = await octokit.request(
+      'GET /user/repos?page={page}&per_page={per_page}',
+      {
+        page,
+        per_page: 100,
+        headers: {
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
       },
-    });
+    );
     return repositories.data;
   }
 

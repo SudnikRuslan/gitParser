@@ -9,8 +9,11 @@ export class RepositoryResolver {
   constructor(private readonly githubService: GithubService) {}
 
   @Query(() => [Repository])
-  async repositories(@Args('token') token: string): Promise<Repository[]> {
-    const repositories = await this.githubService.getRepositories(token);
+  async repositories(
+    @Args('token') token: string,
+    @Args('page') page: number = 0,
+  ): Promise<Repository[]> {
+    const repositories = await this.githubService.getRepositories(token, page);
     return repositories.map((repo) => ({
       name: repo.name,
       owner: repo.owner.login,
