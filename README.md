@@ -15,6 +15,7 @@ $ yarn run start
 $ yarn run start:dev
 
 ## Description
+You can change port by using .env file and PORT var
 
 graphql url: http://localhost:3000/graphql
 
