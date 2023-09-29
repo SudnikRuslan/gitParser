@@ -7,7 +7,7 @@ import {
   Context,
 } from '@nestjs/graphql';
 import { FullRepository, Repository } from './entities';
-import { RepositoryService } from './repository.service';
+import { RepositoryService } from './services/repository.service';
 import { ParseIntPipe } from '@nestjs/common';
 
 @Resolver(() => Repository)

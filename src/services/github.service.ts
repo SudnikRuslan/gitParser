@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Octokit } from 'octokit';
-import { FullRepository } from './entities';
-import { ThreeItem } from './types';
+import { FullRepository } from '../entities';
+import { ThreeItem } from '../types';
 
 @Injectable()
 export class GithubService {

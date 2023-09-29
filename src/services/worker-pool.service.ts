@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { v4 as uuid } from 'uuid';
-import { FullRepository } from './entities';
+import { FullRepository } from '../entities';
 import { EventEmitter } from 'events';
 import { GithubService } from './github.service';
-import { Task } from './types';
+import { Task } from '../types';
 
 @Injectable()
 export class WorkerPoolService {
