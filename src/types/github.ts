@@ -5,10 +5,3 @@ export type ThreeItem = {
   sha: string;
   url: string;
 };
-
-export type Task = {
-  repo: string;
-  owner: string;
-  token: string;
-  id: string;
-};

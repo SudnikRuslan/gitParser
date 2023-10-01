@@ -6,9 +6,10 @@ import {
   Resolver,
   Context,
 } from '@nestjs/graphql';
+import { ParseIntPipe } from '@nestjs/common';
 import { FullRepository, Repository } from './entities';
 import { RepositoryService } from './services/repository.service';
-import { ParseIntPipe } from '@nestjs/common';
+import { RepositoryCtx } from './types';
 
 @Resolver(() => Repository)
 export class RepositoryResolver {
@@ -18,7 +19,9 @@ export class RepositoryResolver {
   async repositories(
     @Args('token') token: string,
     @Args('page', new ParseIntPipe()) page: number,
+    @Context() ctx: RepositoryCtx,
   ): Promise<Repository[]> {
+    ctx.token = token;
     const repositories = await this.repositoryService.getRepositories(
       token,
       page,
@@ -30,24 +33,17 @@ export class RepositoryResolver {
     }));
   }
 
+  @ResolveField(() => FullRepository)
+  fullRepo(@Parent() rep: Repository, @Context() ctx: RepositoryCtx) {
+    return this.repositoryService.getFullRepo(rep.name, rep.owner, ctx.token);
+  }
+
   @Query(() => FullRepository)
-  async fullRepository(
+  fullRepository(
     @Args('token') token: string,
     @Args('repo') repo: string,
     @Args('owner') owner: string,
-    @Context() info: any,
   ): Promise<FullRepository> {
-    info.token111 = token;
-    const repository = await this.repositoryService.getFullRepo(
-      repo,
-      owner,
-      token,
-    );
-    return repository;
-  }
-
-  @ResolveField(() => FullRepository)
-  fullRepo(@Parent() rep: Repository, @Args('token') token: string) {
-    return this.repositoryService.getFullRepo(rep.name, rep.owner, token);
+    return this.repositoryService.getFullRepo(repo, owner, token);
   }
 }
