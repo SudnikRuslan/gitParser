@@ -7,7 +7,8 @@ import { Task } from '../types';
 export class WorkerPoolService {
   private readonly workers: any[] = [];
 
-  private readonly taskEmitter: EventEmitter = new EventEmitter();
+  private readonly taskEmitter: EventEmitter =
+    new EventEmitter().setMaxListeners(100);
   private readonly tasks: Task[] = [];
 
   private readonly workerCount = 2;
